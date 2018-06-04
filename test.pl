@@ -7,8 +7,8 @@ use autodie;
 
 sub host_state { }
 sub service_state { }
-sub service_alert { }
-sub service_notification { }
+sub host_downtime { }
+sub service_downtime { }
 
 sub no_type {
   my $content = shift;
@@ -28,15 +28,19 @@ sub no_type {
 my $handlers = {
   'LOG ROTATION' => sub { },
   'LOG VERSION' => sub { },
-  'CURRENT HOST STATE' => \&host_state,
-  'CURRENT SERVICE STATE' => \&service_state,
-  'SERVICE ALERT' => \&service_alert,
-  'SERVICE NOTIFICATION' => \&service_notification,
-  'SERVICE FLAPPING ALERT' => sub { },
+
   'HOST ALERT' => \&host_state,
+  'CURRENT HOST STATE' => \&host_state,
+
+  'SERVICE ALERT' => \&service_state,
+  'CURRENT SERVICE STATE' => \&service_state,
+
+  'HOST DOWNTIME ALERT' => \&host_downtime,
+  'SERVICE DOWNTIME ALERT' => \&service_downtime,
+
+  'SERVICE NOTIFICATION' => sub { },
+  'SERVICE FLAPPING ALERT' => sub { },
   'EXTERNAL COMMAND' => sub { },
-  'SERVICE DOWNTIME ALERT' => sub { },
-  'HOST DOWNTIME ALERT' => sub { },
   'API LOG' => sub { },
   'SERVICE EVENT HANDLER' => sub { },
   'HOST NOTIFICATION' => sub { },
