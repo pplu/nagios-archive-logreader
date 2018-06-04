@@ -59,6 +59,7 @@ while (my $line = <$log>) {
     #say $ts, $type, $content;
     my $handler = $handlers->{ $type };
     die "No handler for $type in\n$line" if (not defined $handler);
+    $handlers->{ $type }->($content, $type, $ts);
   } elsif (my ($ts_2, $content_2) = ($line =~ m/\[(\d+)\] (.*)/)) {
     $handlers->{ no_type }->($content_2, $ts_2);
   } else {
