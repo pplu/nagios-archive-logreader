@@ -5,10 +5,32 @@ use strict;
 use warnings;
 use autodie;
 
-sub host_state { }
-sub service_state { }
-sub host_downtime { }
-sub service_downtime { }
+sub host_state {
+  my ($content, undef, $ts) = @_;
+
+  my $state = {};
+  ($state->{ host }, $state->{ state }, $state->{ state_type }, undef, $state->{ output }) = split /;/, $content, 5;
+
+}
+sub service_state { 
+  my ($content, undef, $ts) = @_;
+ 
+  my $state = {};
+  ($state->{ host }, $state->{ service }, $state->{ state }, $state->{ state_type }, undef, $state->{ output }) = split /;/, $content, 6;
+}
+
+sub host_downtime { 
+  my ($content, undef, $ts) = @_;
+
+  my $state = {};
+  ($state->{ host }, $state->{ state }, $state->{ output }) = split /;/, $content, 3;
+}
+sub service_downtime { 
+  my ($content, undef, $ts) = @_;
+
+  my $state = {};
+  ($state->{ host }, $state->{ service }, $state->{ state }, $state->{ output }) = split /;/, $content, 4;
+}
 
 sub no_type {
   my $content = shift;
