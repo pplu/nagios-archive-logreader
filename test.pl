@@ -14,11 +14,11 @@ my $service = $ARGV[1] or usage;
 my $from_ts = $ARGV[2] or usage;
 my $to_ts = $ARGV[3] or usage;
 
-my $last_event;
+my $last_event_state;
 my $last_event_ts;
+my $in_downtime;
 
 my $avail = {
-  in_downtime => 0,
   all => 0,
   ok => 0,
   warning => 0,
@@ -52,21 +52,42 @@ sub service_state {
 
   return if ($state->{ state_type } ne 'HARD');
   
-  if (not defined $last_event) {
+  if (not defined $last_event_state) {
     $last_event_ts = $ts;
-    $last_event = $state;
+    $last_event_state = $state->{ state };
+    $in_downtime = 0;
   }
 
   my $delta_t = $ts - $last_event_ts;
+  add_to_availability($delta_t);
 
-  $avail->{ all } += $delta_t;
-  $avail->{ ok } += $delta_t if ($last_event->{ state } eq 'OK');
-  $avail->{ warning } += $delta_t if ($last_event->{ state } eq 'WARNING');
-  $avail->{ unknown } += $delta_t if ($last_event->{ state } eq 'UNKNOWN');
-  $avail->{ critical } += $delta_t if ($last_event->{ state } eq 'CRITICAL');
-
-  $last_event = $state;
+  $last_event_state = $state->{ state };
   $last_event_ts = $ts;
+}
+
+sub add_to_availability {
+  my $duration = shift;
+
+  $avail->{ all } += $duration;
+
+  if ($last_event_state eq 'OK') {
+    $avail->{ ok } += $duration;
+  }
+
+  my $suffix = $avail->{ in_downtime } ? 'scheduled' : 'unscheduled';
+
+  if ($last_event_state eq 'WARNING') {
+    $avail->{ warning } += $duration;
+    $avail->{ "warning_$suffix" } += $duration; 
+  } elsif($last_event_state eq 'UNKNOWN') {
+    $avail->{ unknown } += $duration;
+    $avail->{ "unknown_$suffix" } += $duration;
+  } elsif ($last_event_state eq 'CRITICAL') {
+    $avail->{ critical } += $duration;
+    $avail->{ "critical_$suffix" } += $duration;
+  } else {
+    die "ERROR: Unknown event state: $last_event_state";
+  }
 }
 
 sub host_downtime { 
