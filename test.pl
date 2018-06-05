@@ -14,9 +14,10 @@ my $service = $ARGV[1] or usage;
 my $from_ts = $ARGV[2] or usage;
 my $to_ts = $ARGV[3] or usage;
 
+my $last_event;
+my $last_event_ts;
+
 my $avail = {
-  first_event => undef,
-  last_event => undef,
   in_downtime => 0,
   all => 0,
   ok => 0,
@@ -39,7 +40,10 @@ sub host_state {
 }
 sub service_state { 
   my ($content, undef, $ts) = @_;
- 
+
+  return if ($ts <= $from_ts);
+  return if ($ts > $to_ts);
+
   my $state = {};
   ($state->{ host }, $state->{ service }, $state->{ state }, $state->{ state_type }, undef, $state->{ output }) = split /;/, $content, 6;
 
@@ -47,21 +51,22 @@ sub service_state {
   return unless (($state->{ host } eq $host) and ($state->{ service } eq $service));
 
   return if ($state->{ state_type } ne 'HARD');
-
-  if (not defined $avail->{ last_event }){
-    $avail->{ last_event } = $ts;
-    $avail->{ first_event } = $ts;
+  
+  if (not defined $last_event) {
+    $last_event_ts = $ts;
+    $last_event = $state;
   }
 
-  my $delta_t = $ts - $avail->{ last_event };
+  my $delta_t = $ts - $last_event_ts;
 
   $avail->{ all } += $delta_t;
-  $avail->{ ok } += $delta_t if ($state->{ state } eq 'OK');
-  $avail->{ warning } += $delta_t if ($state->{ state } eq 'WARNING');
-  $avail->{ unknown } += $delta_t if ($state->{ state } eq 'UNKNOWN');
-  $avail->{ critical } += $delta_t if ($state->{ state } eq 'CRITICAL');
+  $avail->{ ok } += $delta_t if ($last_event->{ state } eq 'OK');
+  $avail->{ warning } += $delta_t if ($last_event->{ state } eq 'WARNING');
+  $avail->{ unknown } += $delta_t if ($last_event->{ state } eq 'UNKNOWN');
+  $avail->{ critical } += $delta_t if ($last_event->{ state } eq 'CRITICAL');
 
-  $avail->{ last_event } = $ts;
+  $last_event = $state;
+  $last_event_ts = $ts;
 }
 
 sub host_downtime { 
@@ -141,9 +146,8 @@ while (my $line = <$log>) {
 use Data::Dumper;
 print Dumper($avail);
 
-printf
-printf "OK       Total\t%2.3f\n", ($avail->{ ok }       / $avail->{ all });
-printf "Warning  Total\t%2.3f\n", ($avail->{ warning }  / $avail->{ all });
-printf "Unknown  Total\t%2.3f\n", ($avail->{ unknown }  / $avail->{ all });
-printf "Critical Total\t%2.3f\n", ($avail->{ critical } / $avail->{ all });
+printf "OK       Total\t%03.2f\n", ($avail->{ ok }       / $avail->{ all }) * 100;
+printf "Warning  Total\t%03.2f\n", ($avail->{ warning }  / $avail->{ all }) * 100;
+printf "Unknown  Total\t%03.2f\n", ($avail->{ unknown }  / $avail->{ all }) * 100;
+printf "Critical Total\t%03.2f\n", ($avail->{ critical } / $avail->{ all }) * 100;
 
