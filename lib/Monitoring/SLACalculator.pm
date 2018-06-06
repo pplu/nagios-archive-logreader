@@ -18,15 +18,17 @@ package Monitoring::SLACalculator {
       all => 0,
       undetermined => 0,
       ok => 0,
+      ok_indowntime => 0,
+      ok_nondowntime => 0,
       warning => 0,
-      warning_scheduled => 0,
-      warning_unscheduled => 0,
+      warning_indowntime => 0,
+      warning_nondowntime => 0,
       unknown => 0,
-      unknown_scheduled => 0,
-      unknown_unscheduled => 0,
+      unknown_indowntime => 0,
+      unknown_nondowntime => 0,
       critical => 0,
-      critical_scheduled => 0,
-      critical_unscheduled => 0,
+      critical_indowntime => 0,
+      critical_nondowtime => 0,
     }
   });
 
@@ -102,24 +104,11 @@ package Monitoring::SLACalculator {
   
     $avail->{ all } += $duration;
   
-    my $suffix = $self->_in_downtime ? 'scheduled' : 'unscheduled';
-  
-    if ($last_event_state eq 'WARNING') {
-      $avail->{ warning } += $duration;
-      $avail->{ "warning_$suffix" } += $duration; 
-    } elsif($last_event_state eq 'UNKNOWN') {
-      $avail->{ unknown } += $duration;
-      $avail->{ "unknown_$suffix" } += $duration;
-    } elsif ($last_event_state eq 'CRITICAL') {
-      $avail->{ critical } += $duration;
-      $avail->{ "critical_$suffix" } += $duration;
-    } elsif ($last_event_state eq 'OK') {
-      $avail->{ ok } += $duration;
-    } elsif ($last_event_state eq 'UNDETERMINED') {
-      $avail->{ undetermined } += $duration;
-    } else {
-      die "ERROR: Unknown event state: $last_event_state";
-    }
+    my $suffix = $self->_in_downtime ? 'indowntime' : 'nondowntime';
+    my $state = lc($last_event_state);
+
+    $avail->{  $state }          += $duration;
+    $avail->{ "${state}_${suffix}" } += $duration if ($last_event_state ne 'UNDETERMINED');
   }
   
   sub host_downtime { 

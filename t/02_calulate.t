@@ -37,7 +37,7 @@ sub test_sla {
   
   $sla->process;
 
-  foreach my $test (keys %$tests) {
+  foreach my $test (sort keys %$tests) {
     cmp_ok($sla->avail->{ $test }, '==', $tests->{ $test }, "$test is $tests->{ $test } in availability when $description");
   }
 }
@@ -82,6 +82,7 @@ test_sla(
   {
     all => 86400,
     ok => 86400,
+    ok_nondowntime => 86400,
   }
 );
 
@@ -106,7 +107,9 @@ test_sla(
   {
     all => 86400,
     ok => 86400/2,
+    ok_nondowntime => 86400/2,
     warning => 86400/2,
+    warning_nondowntime => 86400/2,
   }
 );
 
@@ -120,6 +123,7 @@ test_sla(
     all => 86400,
     ok => 86400/2,
     critical => 86400/2,
+    critical_nondowntime => 86400/2,
   }
 );
 
@@ -133,6 +137,7 @@ test_sla(
     all => 86400,
     ok => 86400/2,
     unknown => 86400/2,
+    unknown_nondowntime => 86400/2,
   }
 );
 
@@ -173,8 +178,11 @@ test_sla(
   {
     all => 86400,
     ok => $five_parts,
+    ok_nondowntime => $five_parts,
     warning => $five_parts,
+    warning_nondowntime => $five_parts,
     critical => $five_parts,
+    critical_nondowntime => $five_parts,
     undetermined => $five_parts,
   }
 );
