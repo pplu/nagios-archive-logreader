@@ -161,4 +161,44 @@ test_sla(
   }
 );
 
+my $five_parts = 86400/5; # We'll produce the five states
+test_sla(
+  'each state is produced',
+  [
+    "[" . ( 1525039200 + $five_parts * 1 ) . "] CURRENT SERVICE STATE: host;service;OK;HARD;1;plugin output",
+    "[" . ( 1525039200 + $five_parts * 2 ) . "] CURRENT SERVICE STATE: host;service;WARNING;HARD;1;plugin output",
+    "[" . ( 1525039200 + $five_parts * 3 ) . "] CURRENT SERVICE STATE: host;service;CRITICAL;HARD;1;plugin output",
+    "[" . ( 1525039200 + $five_parts * 4 ) . "] CURRENT SERVICE STATE: host;service;UNKNOWN;HARD;1;plugin output",
+  ],
+  {
+    all => 86400,
+    ok => $five_parts,
+    warning => $five_parts,
+    critical => $five_parts,
+    undetermined => $five_parts,
+  }
+);
+
+test_sla(
+  'out of range data (in the past) is not considered',
+  [
+    "[" . (1525039200 - 100) . "] CURRENT SERVICE STATE: host;service;OK;HARD;1;OK plugin output",
+  ],
+  {
+    all => 86400,
+    undetermined => 86400,
+  }
+);
+
+test_sla(
+  'out of range data (in the future) is not considered',
+  [
+    "[" . (1525039200 + 86400 + 100) . "] CURRENT SERVICE STATE: host;service;OK;HARD;1;OK plugin output",
+  ],
+  {
+    all => 86400,
+    undetermined => 86400,
+  }
+);
+
 done_testing;
