@@ -14,12 +14,13 @@ my $service = $ARGV[1] or usage;
 my $from_ts = $ARGV[2] or usage;
 my $to_ts = $ARGV[3] or usage;
 
-my $last_event_state;
-my $last_event_ts;
-my $in_downtime;
+my $last_event_state = 'UNDETERMINED';
+my $last_event_ts = $from_ts;
+my $in_downtime = 0;
 
 my $avail = {
   all => 0,
+  undetermined => 0,
   ok => 0,
   warning => 0,
   warning_scheduled => 0,
@@ -52,12 +53,6 @@ sub service_state {
 
   return if ($state->{ state_type } ne 'HARD');
   
-  if (not defined $last_event_state) {
-    $last_event_ts = $ts;
-    $last_event_state = $state->{ state };
-    $in_downtime = 0;
-  }
-
   my $delta_t = $ts - $last_event_ts;
   add_to_availability($delta_t);
 
@@ -70,10 +65,6 @@ sub add_to_availability {
 
   $avail->{ all } += $duration;
 
-  if ($last_event_state eq 'OK') {
-    $avail->{ ok } += $duration;
-  }
-
   my $suffix = $avail->{ in_downtime } ? 'scheduled' : 'unscheduled';
 
   if ($last_event_state eq 'WARNING') {
@@ -85,6 +76,10 @@ sub add_to_availability {
   } elsif ($last_event_state eq 'CRITICAL') {
     $avail->{ critical } += $duration;
     $avail->{ "critical_$suffix" } += $duration;
+  } elsif ($last_event_state eq 'OK') {
+    $avail->{ ok } += $duration;
+  } elsif ($last_event_state eq 'UNDETERMINED') {
+    $avail->{ undetermined } += $duration;
   } else {
     die "ERROR: Unknown event state: $last_event_state";
   }
@@ -93,14 +88,64 @@ sub add_to_availability {
 sub host_downtime { 
   my ($content, undef, $ts) = @_;
 
+  return if ($ts <= $from_ts);
+  return if ($ts > $to_ts);
+
   my $state = {};
   ($state->{ host }, $state->{ state }, $state->{ output }) = split /;/, $content, 3;
+
+  # Only process if we're scanning for this host
+  return unless ($state->{ host } eq $host);
+
+  # add the time till the downtime event to the availability
+  my $delta_t = $ts - $last_event_ts;
+  add_to_availability($delta_t);
+  $last_event_ts = $ts;
+
+  if ($state->{ state } eq 'STOPPED') {
+    $in_downtime = 0;
+  } elsif ($state->{ state } eq 'CANCELLED') {
+    $in_downtime = 0;
+  } elsif ($state->{ state } eq 'STARTED') {
+    $in_downtime = 1;
+  } else {
+    die "Unknown state $state->{ state }";
+  }
 }
 sub service_downtime { 
   my ($content, undef, $ts) = @_;
 
+  return if ($ts <= $from_ts);
+  return if ($ts > $to_ts);
+
   my $state = {};
   ($state->{ host }, $state->{ service }, $state->{ state }, $state->{ output }) = split /;/, $content, 4;
+
+  # Only process if we're scanning for this host and service
+  return unless (($state->{ host } eq $host) and ($state->{ service } eq $service));
+
+  # add the time till the downtime event to the availability
+  my $delta_t = $ts - $last_event_ts;
+  add_to_availability($delta_t);
+  $last_event_ts = $ts;
+
+  if ($state->{ state } eq 'STOPPED') {
+    $in_downtime = 0;
+  } elsif ($state->{ state } eq 'CANCELLED') {
+    $in_downtime = 0;
+  } elsif ($state->{ state } eq 'STARTED') {
+    $in_downtime = 1;
+  } else {
+    die "Unknown state $state->{ state }";
+  }
+}
+
+sub end_file {
+  my ($ts) = @_;
+
+  my $delta_t = $ts - $last_event_ts;
+  add_to_availability($delta_t);
+  $last_event_ts = $ts;
 }
 
 sub no_type {
@@ -163,12 +208,19 @@ while (my $line = <$log>) {
     die "Unrecognized log line '$line'";  
   }
 }
+end_file($to_ts);
 
 use Data::Dumper;
 print Dumper($avail);
 
 printf "OK       Total\t%03.2f\n", ($avail->{ ok }       / $avail->{ all }) * 100;
 printf "Warning  Total\t%03.2f\n", ($avail->{ warning }  / $avail->{ all }) * 100;
+printf "  Scheduled\t%03.2f\n",    ($avail->{ warning_scheduled }  / $avail->{ all }) * 100;
+printf "  Unscheduled\t%03.2f\n",    ($avail->{ warning_unscheduled }  / $avail->{ all }) * 100;
 printf "Unknown  Total\t%03.2f\n", ($avail->{ unknown }  / $avail->{ all }) * 100;
+printf "  Scheduled\t%03.2f\n",    ($avail->{ unknown_scheduled }  / $avail->{ all }) * 100;
+printf "  Unscheduled\t%03.2f\n",    ($avail->{ unknown_unscheduled }  / $avail->{ all }) * 100;
 printf "Critical Total\t%03.2f\n", ($avail->{ critical } / $avail->{ all }) * 100;
-
+printf "  Scheduled\t%03.2f\n",    ($avail->{ critical_scheduled }  / $avail->{ all }) * 100;
+printf "  Unscheduled\t%03.2f\n",    ($avail->{ critical_unscheduled }  / $avail->{ all }) * 100;
+printf "Undetermined\t%03.2f\n", ($avail->{ undetermined } / $avail->{ all }) * 100;
