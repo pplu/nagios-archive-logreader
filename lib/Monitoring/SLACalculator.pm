@@ -71,8 +71,8 @@ package Monitoring::SLACalculator {
 
   sub ts_not_in_range {
     my ($self, $ts) = @_;
-    return 1 if ($ts <= $self->from_ts);
-    return 1 if ($ts >= $self->to_ts);
+    return 1 if ($ts < $self->from_ts);
+    return 1 if ($ts > $self->to_ts);
   }
 
   sub service_state { 
