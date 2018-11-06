@@ -86,7 +86,7 @@ package Monitoring::SLACalculator {
     ($state->{ host }, $state->{ service }, $state->{ state }, $state->{ state_type }, undef, $state->{ output }) = split /;/, $content, 6;
   
     # Only process if we're scanning for this host and service
-    return unless (($state->{ host } eq $self->host) and ($state->{ service } eq $self->service));
+    return if (($state->{ host } ne $self->host) or ($state->{ service } ne $self->service));
   
     return if ($state->{ state_type } ne 'HARD');
     
@@ -120,7 +120,7 @@ package Monitoring::SLACalculator {
     ($state->{ host }, $state->{ state }, $state->{ output }) = split /;/, $content, 3;
   
     # Only process if we're scanning for this host
-    return unless ($state->{ host } eq $self->host);
+    return if ($state->{ host } ne $self->host);
   
     # add the time till the downtime event to the availability
     my $delta_t = $ts - $self->_last_event_ts;
@@ -147,7 +147,7 @@ package Monitoring::SLACalculator {
     ($state->{ host }, $state->{ service }, $state->{ state }, $state->{ output }) = split /;/, $content, 4;
   
     # Only process if we're scanning for this host and service
-    return unless (($state->{ host } eq $self->host) and ($state->{ service } eq $self->service));
+    return if (($state->{ host } ne $self->host) or ($state->{ service } ne $self->service));
   
     # add the time till the downtime event to the availability
     my $delta_t = $ts - $self->_last_event_ts;
